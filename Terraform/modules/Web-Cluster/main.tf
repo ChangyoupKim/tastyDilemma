@@ -89,7 +89,7 @@ resource "aws_security_group" "Was-Server_sg" {
 
 
 // Web ASG (Auto Scaling Group) 시작 템플릿 영역
-resource "aws_launch_configuration" "td_was_sever" {
+resource "aws_launch_configuration" "td_web_sever" {
   image_id        = "ami-0ea4d4b8dc1e46212"
   instance_type   = var.instance_type
   security_groups = [aws_security_group.Web-Server_sg.id]
@@ -117,33 +117,53 @@ resource "aws_launch_configuration" "td_was_sever" {
   # 이러한 문제들을 해결하기 위해서 테라폼에서는 리소스의 lifecycle 기능을 지원한다.
 }
 
-// 여기 부터 작업할 차례 
+// Was ASG (Auto Scaling Group) 시작 템플릿 영역
+resource "aws_launch_configuration" "td_was_sever" {
+  image_id        = "ami-0ea4d4b8dc1e46212"
+  instance_type   = var.instance_type
+  security_groups = [aws_security_group.Was-Server_sg.id]
+
+  user_data = <<-EOF
+    #!/bin/bash
+    yum -y update
+    yum -y install httpd.x86_64
+    systemctl start httpd.service
+    systemctl enable httpd.service
+    echo "Hello World from $(hostname -f)" > /var/www/html/index.html
+  EOF
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+
 // ASG (Auto Scaling Group) 영역
 resource "aws_autoscaling_group" "CodeDeploy_webServerDeployGroup" {
-  launch_configuration = aws_launch_configuration.td_was_sever.name
+  launch_configuration = aws_launch_configuration.td_web_sever.name
   min_size             = var.min_size
   max_size             = var.max_size
   vpc_zone_identifier  = [var.private_subnet1, var.private_subnet2]
   # ASG 시작구성 정보를 불러오고 인스턴스의 최소 개수와 최대 개수를 정의
   # 인스턴스가 생성 될 Subnet을 명시 
 
-  target_group_arns = [aws_lb_target_group.my_lb_tg.arn]
-  health_check_type = "ELB"
+  target_group_arns = [aws_lb_target_group.ALB-target.arn]
+  health_check_type = "ALB"
   # ALB TagetGroup과 연결 ( ALB 작성을 모두 마치고 추가로 작업 )
   # ARN : Amazon Resource Name
 
   tag {
     key                 = "Name"
-    value               = "my_ASG_EC2Instance"
+    value               = "terraform-web-server"
     propagate_at_launch = true
   }
   # ASG 시작구성으로 생성되는 인스턴스에 태그를 붙여준다.
 }
 
 
-// ELB ( Elastic Load Balancing ) 영역
-resource "aws_lb" "my_lb" {
-  name               = "my-lb"
+// ALB ( Applicaion Load Balancing ) 영역
+resource "aws_lb" "Alb" {
+  name               = "terraform-web-server-alb"
   load_balancer_type = "application"
   security_groups    = [aws_security_group.http_sg.id]
   subnets            = [var.public_subnet1, var.public_subnet2]
@@ -155,7 +175,7 @@ resource "aws_lb" "my_lb" {
 
 
 resource "aws_lb_listener" "my_lb_listener" {
-  load_balancer_arn = aws_lb.my_lb.arn
+  load_balancer_arn = aws_lb.ALB-target.arn
   port              = 80
   protocol          = "HTTP"
 
