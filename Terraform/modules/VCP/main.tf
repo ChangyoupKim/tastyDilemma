@@ -1,3 +1,55 @@
+terraform {
+  backend "s3" {
+    bucket  = "tastydilemma-terraform-state"
+    key     = "${var.name}/VCP/terraform.tfstate"
+    region  = "ap-northeast-2"
+    profile = "terraform_user"
+    dynamodb_table = "tastydilemma-terraform-state-lock"
+    encrypt        = true
+  }
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region  = "ap-northeast-2"
+  profile = "terraform_user"
+}
+
+
+
+######################################################################
+#                                VPC                                 #
+######################################################################
+
+# Stage VPC
+module "stage_vpc" {
+  source = "github.com/ChangyoupKim/Terraform_Project_VPC"
+  name   = "stage_vpc"
+  cidr   = local.cidr
+
+  azs              = local.azs
+  public_subnets   = local.public_subnets
+  private_subnets  = local.private_subnets
+  database_subnets = local.database_subnets
+
+  enable_dns_hostnames = "true"
+  enable_dns_support   = "true"
+
+  enable_nat_gateway     = true
+  single_nat_gateway     = true
+  one_nat_gateway_per_az = false
+
+  tags = {
+    "TerraformManaged" = "true"
+  }
+}
+
+
 // VPC 정의 영역 ( DNS Hostnames, DNS support 기능 활성화 )
 resource "aws_vpc" "td-vpc-01" {
   cidr_block           = var.vpc_cidr
