@@ -4,7 +4,7 @@ terraform {
     key     = "${var.name}/Security/terraform.tfstate"
     region  = "ap-northeast-2"
     profile = "terraform_user"
-    dynamodb_table = "myTerraform-bucket-lock-changyoup"
+    dynamodb_table = "tastydilemma-terraform-state-lock"
     encrypt        = true
   }
   required_providers {

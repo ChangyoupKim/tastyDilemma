@@ -67,7 +67,7 @@ resource "aws_s3_bucket_versioning" "terraform_state_ver" {
 
 # 다이나모 DB : AWS의 분산형 KEY-Value 저장소
 resource "aws_dynamodb_table" "terraform_locks" {
-  name         = "tastydilemma-terraform-locks"  
+  name         = "tastydilemma-terraform-state-lock"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
 
